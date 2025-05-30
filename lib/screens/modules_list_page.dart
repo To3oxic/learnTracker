@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/module.dart';
 import 'module_detail_page.dart';
 import 'statistics_page.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:learn_progress_tracker/l10n/app_localizations.dart';
 
 class ModulesListPage extends StatefulWidget {
   final List<Module> modules;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:learn_progress_tracker/l10n/app_localizations.dart';
 import 'models/module.dart'; // Added import
 import 'screens/module_creation_page.dart'; // Added import
 import 'screens/modules_list_page.dart'; // Added import

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:learn_progress_tracker/l10n/app_localizations.dart';
 import '../models/module.dart';
 
 class StatisticsPage extends StatelessWidget {

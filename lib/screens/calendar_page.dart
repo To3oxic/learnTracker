@@ -4,7 +4,7 @@ import '../models/module.dart';
 import '../models/task.dart';
 import '../models/priority.dart';
 import 'module_detail_page.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:learn_progress_tracker/l10n/app_localizations.dart';
 import '../providers/theme_provider.dart';
 import '../providers/locale_provider.dart';
 
