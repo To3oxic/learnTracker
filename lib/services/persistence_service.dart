@@ -1,11 +1,56 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/module.dart';
 import '../models/task.dart';
 
 class PersistenceService {
   static const String _modulesKey = 'modules';
   static const String _settingsKey = 'settings';
+  static const String _backupFolderName = 'studyflow-backup';
+  static const String _backupFileName = 'app_backup.json';
+
+  Future<bool> _requestStoragePermission() async {
+    if (await Permission.storage.request().isGranted) {
+      return true;
+    }
+    
+    // If storage permission is denied, try requesting manage external storage
+    if (await Permission.manageExternalStorage.request().isGranted) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  Future<Directory> _getBackupDirectory() async {
+    // Request storage permission
+    final hasPermission = await _requestStoragePermission();
+    if (!hasPermission) {
+      throw Exception('Storage permission denied');
+    }
+
+    // Get the external storage directory
+    final externalDir = await getExternalStorageDirectory();
+    if (externalDir == null) {
+      throw Exception('Could not access external storage');
+    }
+
+    // Navigate up to the root storage directory
+    // The path is typically like: /storage/emulated/0/Android/data/com.example.app/files
+    // We want to go up to: /storage/emulated/0/
+    final rootPath = externalDir.path.split('Android')[0];
+    final backupDir = Directory('$rootPath$_backupFolderName');
+
+    // Create the directory if it doesn't exist
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
+
+    return backupDir;
+  }
 
   Future<List<Module>> loadModules() async {
     final prefs = await SharedPreferences.getInstance();
@@ -59,39 +104,69 @@ class PersistenceService {
     await prefs.setString(_settingsKey, jsonEncode(settings));
   }
 
-  Future<void> exportData() async {
-    final modules = await loadModules();
-    final settings = await loadSettings();
-    
-    final exportData = {
-      'modules': modules.map((m) => m.toJson()).toList(),
-      'settings': settings,
-    };
-    
-    // TODO: Implement actual file export
-    // For now, we'll just save to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('export_data', jsonEncode(exportData));
+  Future<String> exportData() async {
+    try {
+      // Get all data from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final allData = prefs.getKeys().fold<Map<String, dynamic>>({}, (map, key) {
+        map[key] = prefs.get(key);
+        return map;
+      });
+
+      // Add export timestamp
+      allData['exportTimestamp'] = DateTime.now().toIso8601String();
+
+      // Convert to JSON
+      final jsonData = jsonEncode(allData);
+
+      // Get the backup directory
+      final backupDir = await _getBackupDirectory();
+      final file = File('${backupDir.path}/$_backupFileName');
+
+      // Write to file
+      await file.writeAsString(jsonData);
+      
+      // Return the backup file path
+      return file.path;
+    } catch (e) {
+      print('Error exporting data: $e');
+      rethrow;
+    }
   }
 
   Future<void> importData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final exportDataJson = prefs.getString('export_data');
-    
-    if (exportDataJson == null) {
-      throw Exception('No export data found');
+    try {
+      // Get the backup directory
+      final backupDir = await _getBackupDirectory();
+      final file = File('${backupDir.path}/$_backupFileName');
+
+      // Check if file exists
+      if (!await file.exists()) {
+        throw Exception('No backup file found in $_backupFolderName folder');
+      }
+
+      // Read the file
+      final jsonData = await file.readAsString();
+      final Map<String, dynamic> allData = jsonDecode(jsonData);
+
+      // Save all data back to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      for (var entry in allData.entries) {
+        if (entry.key == 'exportTimestamp') continue; // Skip the timestamp
+        
+        if (entry.value is String) {
+          await prefs.setString(entry.key, entry.value as String);
+        } else if (entry.value is bool) {
+          await prefs.setBool(entry.key, entry.value as bool);
+        } else if (entry.value is int) {
+          await prefs.setInt(entry.key, entry.value as int);
+        } else if (entry.value is double) {
+          await prefs.setDouble(entry.key, entry.value as double);
+        }
+      }
+    } catch (e) {
+      print('Error importing data: $e');
+      rethrow;
     }
-    
-    final exportData = jsonDecode(exportDataJson);
-    if (exportData is! Map<String, dynamic>) {
-      throw Exception('Invalid export data format');
-    }
-    
-    final modules = (exportData['modules'] as List)
-        .map((json) => Module.fromJson(json as Map<String, dynamic>))
-        .toList();
-    
-    await saveModules(modules);
-    await saveSettings(exportData['settings'] as Map<String, dynamic>);
   }
 } 

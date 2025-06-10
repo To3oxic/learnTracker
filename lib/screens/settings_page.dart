@@ -83,10 +83,13 @@ class SettingsPage extends StatelessWidget {
                   title: Text(l10n.exportData),
                   onTap: () async {
                     try {
-                      await persistenceService.exportData();
+                      final backupPath = await persistenceService.exportData();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l10n.dataExported)),
+                          SnackBar(
+                            content: Text('${l10n.dataExported}\nPath: $backupPath'),
+                            duration: const Duration(seconds: 5),
+                          ),
                         );
                       }
                     } catch (e) {
